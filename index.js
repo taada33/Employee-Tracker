@@ -15,7 +15,7 @@ function init(){
             type: 'list',
             // message: "What would you like to do?",
             name: 'mainMenu',
-            choices: ['View All Employees', 'Add An Employee', 'Update Employee Role', 'Update Employee Manager', 'View employees by manager', 'View employees by department', 'View All Roles', 'Add A Role', 'View All Departments', 'Add Department', 'Delete department, role, or employee', 'Quit']
+            choices: ['View All Employees', 'Add An Employee', 'Update Employee Role', 'Update Employee Manager', 'View employees by manager', 'View employees by department', 'View All Roles', 'Add A Role', 'View All Departments', 'Add Department', 'View Total Budget of a Department', 'Delete department, role, or employee', 'Quit']
         }
     ]).then((data) => {
         switch(data.mainMenu){
@@ -35,9 +35,10 @@ function init(){
                 break;
 
             case 'Add An Employee':
-                con.promise().query('select title FROM role').then(([rows,fields]) => {
+                con.promise().query('select id, title FROM role').then(([rows,fields]) => {
+                    const roleTable = rows;
                     const titles = rows.map(({title}) => title);
-                    con.promise().query('select concat(first_name, " ", last_name) AS manager FROM employee').then(([rows,fields]) => {
+                    con.promise().query('select id, concat(first_name, " ", last_name) AS manager FROM employee').then(([rows,fields]) => {
                         const names = rows.map(({manager}) => manager);
                         names.push('No manager');
                         inquirer.prompt([
@@ -64,11 +65,25 @@ function init(){
                                 choices: names
                             }
                         ]).then((data) => {
+                            let roleId;
+                            roleTable.forEach(obj => {
+                                if(obj.title === data.roleId){
+                                    roleId = obj.id;
+                                }
+                            });
+
                             if(data.managerId === "No manager"){
-                                const employee = new Employee(data.firstName, data.lastName, titles.indexOf(data.roleId) + 1, null)
+                                
+                                const employee = new Employee(data.firstName, data.lastName, roleId, null)
                                 employee.add();
                             }else{
-                                const employee = new Employee(data.firstName, data.lastName, titles.indexOf(data.roleId) + 1, names.indexOf(data.managerId) + 1)
+                                let managerId;
+                                rows.forEach(obj => {
+                                    if(obj.manager === data.managerId){
+                                        managerId = obj.id;
+                                    }
+                                });
+                                const employee = new Employee(data.firstName, data.lastName, roleId, managerId)
                                 employee.add();
                             }
                             init();
@@ -77,10 +92,10 @@ function init(){
                 break;
 
             case 'Update Employee Role':
-                con.promise().query('select title FROM role').then(([rows,fields]) => {
-                    const titles = rows.map(({title}) => title);
-                    con.promise().query('select concat(first_name, " ", last_name) as name from employee').then(([rows,fields]) => {
-                        const names = rows.map(({name}) => name);
+                con.promise().query('select concat(first_name, " ", last_name) as name from employee').then(([rows,fields]) => {
+                    const names = rows.map(({name}) => name);
+                    con.promise().query('select id, title FROM role').then(([rows,fields]) => {
+                        const titles = rows.map(({title}) => title);
                         inquirer.prompt([
                             {
                                 type: 'list',
@@ -95,17 +110,22 @@ function init(){
                                 choices: titles
                             }
                         ]).then((data) => {
-                            const employee = new Employee(data.employee.split(" ")[0], data.employee.split(" ")[1], titles.indexOf(data.newRole) + 1, null);
+                            let roleId;
+                            rows.forEach(obj => {
+                                if(obj.title === data.newRole){
+                                    roleId = obj.id;
+                                }
+                            });
+                            const employee = new Employee(data.employee.split(" ")[0], data.employee.split(" ")[1], roleId, null);
                             employee.updateRole();
                             init();
                         })
                     })
                 })
-                
                 break;
 
             case 'Update Employee Manager':
-                con.promise().query('select concat(first_name, " ", last_name) as name from employee').then(([rows,fields]) => {
+                con.promise().query('select id, concat(first_name, " ", last_name) as name, role_id, manager_id from employee').then(([rows,fields]) => {
                         const names = rows.map(({name}) => name);
                         inquirer.prompt([
                             {
@@ -128,7 +148,13 @@ function init(){
                                     choices: managers
                                 }
                             ]).then((data) => {
-                                const employee = new Employee(name.split(" ")[0], name.split(" ")[1], null, names.indexOf(data.newManager) + 1);
+                                let managerId;
+                                rows.forEach(obj => {
+                                    if(obj.name === data.newManager){
+                                        managerId = obj.id;
+                                    }
+                                });
+                                const employee = new Employee(name.split(" ")[0], name.split(" ")[1], null, managerId);
                                 employee.updateManager();
                                 init();
                             })
@@ -213,7 +239,7 @@ function init(){
                 break;
 
             case 'Add A Role':
-                con.promise().query('select name FROM department').then(([rows,fields]) => {
+                con.promise().query('select id, name FROM department').then(([rows,fields]) => {
                     const departments = rows.map(({name}) => name);
                     inquirer
                         .prompt([
@@ -234,7 +260,15 @@ function init(){
                                 choices: departments
                             }
                     ]).then((data) => {
-                        const role = new Role(data.roleName,data.salary, departments.indexOf(data.department) + 1);
+                        let departmentId;
+                        console.log(rows)
+                        rows.forEach(obj => {
+                            if(obj.name === data.department){
+                                departmentId = obj.id;
+                            }
+                        });
+                        console.log(departmentId)
+                        const role = new Role(data.roleName,data.salary, departmentId);
                         role.add();
                         init();
                     })
@@ -265,6 +299,32 @@ function init(){
                 })
                 break;
             
+            case 'View Total Budget of a Department':
+                con.promise().query('select id, name from department').then(([rows,fields]) => {
+                    const departments = rows.map(({name}) => name);
+                    inquirer
+                    .prompt([
+                        {
+                            type: 'list',
+                            message: 'Select department to view budget',
+                            name: 'department',
+                            choices: departments
+                        }
+                    ]).then((data) => {
+                        let departmentId;
+                        rows.forEach(obj => {
+                            if(obj.name === data.department){
+                                departmentId = obj.id;
+                            }
+                        });
+                        const department = new Department(data.department);
+                        department.budget(departmentId);
+                        init();
+                    })
+                })
+                
+                break;
+            
             case 'Delete department, role, or employee':
                 //delete department, role or employee
                 inquirer
@@ -278,10 +338,80 @@ function init(){
                 ]).then((data) => {
                     if(data.class === 'Department'){
                         //delete department
+                        con.promise().query(`select id, name from department`)
+                        .then(([rows, fields]) => {
+                            const departments = rows.map(({name}) => name);
+                            inquirer.prompt([
+                                {
+                                    type: 'list',
+                                    message: 'Choose department to delete',
+                                    name: 'department',
+                                    choices: departments
+                                }
+                            ]).then((data) => {
+                                let departmentId;
+                                rows.forEach(obj => {
+                                    if(obj.name === data.department){
+                                        departmentId = obj.id;
+                                    }
+                                });
+                                const department = new Department(data.department);
+                                department.delete(departmentId);
+                                init();
+                            })
+                        })
+                        
                     }else if(data.class === 'Role'){
                         //delete role
+                        con.promise().query(`select id, title, salary, department_id from role`)
+                        .then(([rows, fields]) => {
+                            const roles = rows.map(({title}) => title);
+                            inquirer.prompt([
+                                {
+                                    type: 'list',
+                                    message: 'Choose a role to delete',
+                                    name: 'role',
+                                    choices: roles
+                                }
+                            ]).then((data) => {
+                                let roleObj;
+                                rows.forEach(obj => {
+                                    if(obj.title === data.role){
+                                        roleObj = {id: obj.id, title: obj.title, salary: obj.salary, 
+                                            department: obj.department};
+                                    }
+                                });
+                                const role = new Role(roleObj.title, roleObj.salary, roleObj.department);
+                                role.delete(roleObj.id);
+                                init();
+                            })
+                        })
                     }else{
                         //delete employee
+                        con.promise().query(`select id, concat(first_name, " ", last_name) as name, role_id, manager_id from employee`)
+                        .then(([rows, fields]) => {
+                            const employees = rows.map(({name}) => name);
+                            inquirer.prompt([
+                                {
+                                    type: 'list',
+                                    message: 'Choose an employee to delete',
+                                    name: 'employee',
+                                    choices: employees
+                                }
+                            ]).then((data) => {
+                                let employeeObj;
+                                rows.forEach(obj => {
+                                    if(obj.name === data.employee){
+                                        employeeObj = {id: obj.id, firstName: obj.name.split(" ")[0], 
+                                        lastName: obj.name.split(" ")[1], roleId: obj.role_id, 
+                                           managerId : obj.manager_id};
+                                    }
+                                });
+                                const role = new Employee(employeeObj.firstName, employeeObj.lastName, employeeObj.roleId, employeeObj.managerId);
+                                role.delete(employeeObj.id);
+                                init();
+                            })
+                        })
                     }
                 })
                 break;
