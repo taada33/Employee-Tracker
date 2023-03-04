@@ -23,7 +23,7 @@ Simply install any dependencies using "npm install" command, then run the code u
 
 ## Usage
 
-Follow the command prompts to make updates to the database / retrieve the desired information. Please check out this link for instructions on using the code: [https://youtu.be/jvLCVNw3FXM](https://youtu.be/jvLCVNw3FXM)
+Follow the command prompts to make updates to the database / retrieve the desired information. Please check out this link for instructions on using the code: [https://youtu.be/GHbeqnjcM_g](https://youtu.be/GHbeqnjcM_g)
     
 ## Contributing
 
